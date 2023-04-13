@@ -48,6 +48,8 @@ func FindUnique(ctx context.Context, field string, value interface{}) (order *Or
 	order = new(Order)
 	row := database.Connection.QueryRow(ctx, fmt.Sprintf("SELECT * FROM \"public\".\"order\" WHERE %s=$1", field), value)
 	err = scan(row, order)
+
+	fmt.Println(*order.Accrual)
 	return
 }
 
@@ -113,21 +115,22 @@ func FindPending(ctx context.Context) (orders []*Order, err error) {
 	return
 }
 
-func Create(ctx context.Context, userID int, number string) (order *Order, err error) {
-	_, err = database.Connection.Exec(ctx, `INSERT INTO "public"."order" (number, user_id) VALUES ($1, $2)`, number, userID)
+func Create(ctx context.Context, userID int, number string) (*Order, error) {
+	_, err := database.Connection.Exec(ctx, `INSERT INTO "public"."order" (number, user_id) VALUES ($1, $2)`, number, userID)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	order, err = FindUnique(ctx, "number", number)
+	order, err := FindUnique(ctx, "number", number)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if _, err = PollStatus(ctx, order); err != nil {
-		return
+		return nil, err
 	}
-	return
+
+	return order, nil
 }
 
 func Update(ctx context.Context, order *Order) (err error) {
