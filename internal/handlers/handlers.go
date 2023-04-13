@@ -241,6 +241,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseData)
 }
 
@@ -308,4 +309,13 @@ func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	responseBody, err := json.Marshal(withdrawals)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseBody)
 }
