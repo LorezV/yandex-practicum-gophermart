@@ -59,6 +59,8 @@ func main() {
 
 	accural.InitAccrualClient()
 
+	fmt.Println(config.Config.RunAddress, config.Config.AccrualSystemAddress)
+
 	r := createRouter()
 
 	g, gCtx := errgroup.WithContext(mainCtx)
