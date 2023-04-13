@@ -2,29 +2,33 @@ package database
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5"
-	"time"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-
-	"github.com/LorezV/go-diploma.git/internal/config"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var Connection *pgx.Conn
-
-func InitConnection(ctx context.Context) (err error) {
-	Connection, err = pgx.Connect(ctx, config.Config.DatabaseURI)
-	if err != nil {
-		return
-	}
-
-	err = CheckConnection()
-	return
+type Database struct {
+	*pgxpool.Pool
 }
 
-func CheckConnection() (err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err = Connection.Ping(ctx)
-	return
+func MakeConnection(ctx context.Context, address string) (*Database, error) {
+	pool, err := pgxpool.Connect(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+
+	db := &Database{
+		pool,
+	}
+
+	go func() {
+		<-ctx.Done()
+		db.Close()
+	}()
+
+	if err = pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+	if err = db.Migrate(ctx); err != nil {
+		return nil, err
+	}
+	return db, nil
 }

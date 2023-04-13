@@ -2,32 +2,32 @@ package config
 
 import (
 	"flag"
-	"github.com/caarlos0/env"
-	"log"
+	"github.com/caarlos0/env/v6"
+	"github.com/rs/zerolog/log"
 )
 
 const SecretKey = "EXAMPLE_SECRET_KEY"
 const PasswordSalt = "EXAMPLE_PASSWORD_SALT"
 
-//var Config struct {
-//	RunAddress           string `env:"RUN_ADDRESS" envDefault:"localhost:8000"`
-//	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS " envDefault:"http://127.0.0.1:8080"`
-//	DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgres://postgres:admin@localhost:5432/go-diploma"`
-//}
-
-var Config struct {
+type Config struct {
 	RunAddress           string `env:"RUN_ADDRESS"`
-	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS "`
 	DatabaseURI          string `env:"DATABASE_URI"`
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 }
 
-func InitConfig() {
-	flag.StringVar(&Config.RunAddress, "a", "localhost:8080", "An address and port for server to start")
-	flag.StringVar(&Config.DatabaseURI, "d", "", "An address of DB connection")
-	flag.StringVar(&Config.AccrualSystemAddress, "r", "", "An address of the Accrual System")
+func MakeConfig() *Config {
+	var cfg Config
+
+	flag.StringVar(&cfg.RunAddress, "a", "localhost:8000", "An address and port for server to start")
+	flag.StringVar(&cfg.DatabaseURI, "d", "postgres://postgres:admin@localhost:5432/go-diploma", "An address of DB connection")
+	flag.StringVar(&cfg.AccrualSystemAddress, "r", "http://127.0.0.1:8080", "An address of the Accrual System")
 
 	flag.Parse()
-	if err := env.Parse(&Config); err != nil {
-		log.Fatal("can't parse env")
+	if err := env.Parse(&cfg); err != nil {
+		log.Fatal().Err(err).Msg("Parsing env")
+		return nil
 	}
+
+	log.Debug().Interface("config", cfg).Send()
+	return &cfg
 }

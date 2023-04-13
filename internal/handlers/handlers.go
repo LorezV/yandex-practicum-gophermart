@@ -1,321 +1,226 @@
 package handlers
 
 import (
-	"crypto/sha256"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repository/orderrepository"
-	"github.com/LorezV/go-diploma.git/internal/repository/userrepository"
-	"github.com/LorezV/go-diploma.git/internal/repository/withdrawalrepository"
+	"github.com/LorezV/go-diploma.git/internal/models"
+	"github.com/LorezV/go-diploma.git/internal/services"
 	"github.com/LorezV/go-diploma.git/internal/utils"
-	"github.com/jackc/pgerrcode"
+	"github.com/go-playground/validator/v10"
+	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 )
 
-func Register(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+type Handler struct {
+	services *services.Services
+}
+
+func MakeHandler(services *services.Services) *Handler {
+	return &Handler{
+		services: services,
+	}
+}
+
+func (h *Handler) Register(c echo.Context) error {
+	type RequestData struct {
+		Login    string `json:"login" validate:"required"`
+		Password string `json:"password" validate:"required"`
+	}
+
+	requestData := new(RequestData)
+	if err := c.Bind(requestData); err != nil {
+		return err
+	}
+
+	if err := validator.New().Struct(requestData); err != nil {
+		err := err.(validator.ValidationErrors)[0]
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("The %s is %s", err.Field(), err.Tag()))
+	}
+
+	user, err := h.services.User.Create(c.Request().Context(), requestData.Login, requestData.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		if errors.Is(err, services.ErrLoginTaken) {
+			return echo.NewHTTPError(http.StatusConflict, "This login is already taken")
+		}
+
+		log.Error().Err(err).Msg("Create user")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	var data struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-	}
-
-	err = json.Unmarshal(body, &data)
+	token, err := h.services.Auth.GenerateToken(user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		log.Error().Err(err).Msg("Login user")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	if data.Login == "" || data.Password == "" {
-		http.Error(w, "invalid login or password", http.StatusBadRequest)
-		return
+	c.Response().Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	return c.NoContent(http.StatusOK)
+}
+
+func (h *Handler) Login(c echo.Context) error {
+	type RequestData struct {
+		Login    string `json:"login" validate:"required"`
+		Password string `json:"password" validate:"required"`
+	}
+	requestData := new(RequestData)
+	if err := c.Bind(requestData); err != nil {
+		return err
 	}
 
-	password := sha256.New()
-	password.Write([]byte(data.Password))
-	password.Write([]byte(config.PasswordSalt))
-	data.Password = fmt.Sprintf("%x", password.Sum(nil))
+	if err := validator.New().Struct(requestData); err != nil {
+		err := err.(validator.ValidationErrors)[0]
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("The %s is %s", err.Field(), err.Tag()))
+	}
 
-	err = userrepository.Create(r.Context(), data.Login, data.Password, config.PasswordSalt)
+	token, err := h.services.Auth.Login(c.Request().Context(), requestData.Login, requestData.Password)
 	if err != nil {
-		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
-			http.Error(w, "this login is already occupied", http.StatusConflict)
-			return
+		if errors.Is(err, services.ErrInvalidCredentials) {
+			return echo.NewHTTPError(http.StatusUnauthorized, "These RequestData don't match our records")
+		}
+
+		log.Error().Err(err).Msg("Login user")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	c.Response().Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	return c.NoContent(http.StatusOK)
+}
+
+func (h *Handler) PostOrders(c echo.Context) error {
+	numberBytes, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Read body on creating order")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	number := string(numberBytes)
+	numberInt, err := strconv.Atoi(number)
+	if err != nil {
+		log.Error().Err(err).Msg("Converting body bytes to int")
+		return echo.NewHTTPError(http.StatusBadRequest, "The number is required to be passed as a plain text")
+	}
+
+	if !utils.ValidLuhn(numberInt) {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity, "Invalid order numberBytes")
+	}
+
+	user := c.Get("user").(*models.User)
+	order, err := h.services.Order.FindByNumber(c.Request().Context(), number)
+	if err != nil {
+		log.Error().Err(err).Msg("FindByID order by numberBytes")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if order != nil {
+		if order.UserID == user.ID {
+			return echo.NewHTTPError(http.StatusOK, "The order has already been taken")
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return echo.NewHTTPError(http.StatusConflict, "The order number is already registered by another user")
 		}
 	}
 
-	user, err := userrepository.FindUnique(r.Context(), "login", data.Login)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if _, err = h.services.Order.Create(c.Request().Context(), number, user); err != nil {
+		log.Error().Err(err).Msg("Create order")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	token, err := utils.GenerateUserToken(user.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	w.WriteHeader(http.StatusOK)
+	return c.JSON(http.StatusAccepted, "The order has been accepted")
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+func (h *Handler) GetOrders(c echo.Context) error {
+	user := c.Get("user").(*models.User)
+
+	orders, err := h.services.Order.FindAll(c.Request().Context(), user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		log.Error().Err(err).Msg("Getting all user orders")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	var data struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
+	if len(orders) > 0 {
+		return c.JSON(http.StatusOK, utils.MakeOrdersResponse(orders))
+	} else {
+		return c.NoContent(http.StatusNoContent)
 	}
-
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if data.Login == "" || data.Password == "" {
-		http.Error(w, "invalid value for login or password", http.StatusBadRequest)
-		return
-	}
-
-	user, err := userrepository.FindUnique(r.Context(), "login", data.Login)
-	if err != nil {
-		if err.Error() == "no rows in result set" {
-			http.Error(w, "invalid login or password", http.StatusUnauthorized)
-			return
-		}
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	password := sha256.New()
-	password.Write([]byte(data.Password))
-	password.Write([]byte(config.PasswordSalt))
-	data.Password = fmt.Sprintf("%x", password.Sum(nil))
-
-	if data.Password != user.Password {
-		http.Error(w, "invalid login or password", http.StatusUnauthorized)
-		return
-	}
-
-	token, err := utils.GenerateUserToken(user.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	w.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	w.WriteHeader(http.StatusOK)
 }
 
-func PostOrders(w http.ResponseWriter, r *http.Request) {
-	cUser := r.Context().Value(utils.ContextKey("user")).(utils.ContextUser)
-	if !cUser.IsValid {
-		http.Error(w, "you unauthorized", http.StatusUnauthorized)
-		return
-	}
+func (h *Handler) GetBalance(c echo.Context) error {
+	user := c.Get("user").(*models.User)
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	number, err := strconv.Atoi(string(body))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if ok := utils.ValidLuhn(number); !ok {
-		http.Error(w, "invalid order number", http.StatusUnprocessableEntity)
-		return
-	}
-
-	_, err = orderrepository.Create(r.Context(), cUser.User.ID, fmt.Sprintf("%d", number))
-	if err != nil {
-		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
-			order, err := orderrepository.FindUnique(r.Context(), "number", fmt.Sprintf("%d", number))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			if order.UserID != cUser.User.ID {
-				http.Error(w, "order already registered", http.StatusConflict)
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func GetOrders(w http.ResponseWriter, r *http.Request) {
-	cUser := r.Context().Value(utils.ContextKey("user")).(utils.ContextUser)
-	if !cUser.IsValid {
-		http.Error(w, "you unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	orders, err := orderrepository.FindByUser(r.Context(), cUser.User.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	type AccrualResponseData struct {
-		Number     string   `json:"number"`
-		Status     string   `json:"status"`
-		Accrual    *float64 `json:"accrual"`
-		UploadedAt string   `json:"uploaded_at"`
-	}
-
-	if len(orders) <= 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	result := make([]AccrualResponseData, 0)
-	for _, order := range orders {
-		result = append(result, AccrualResponseData{
-			Number:     order.Number,
-			Status:     order.Status,
-			Accrual:    order.Accrual,
-			UploadedAt: order.CreatedAt.Format(time.RFC3339),
-		})
-	}
-
-	responseBody, err := json.Marshal(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(responseBody)
-}
-
-func GetBalance(w http.ResponseWriter, r *http.Request) {
-	cUser := r.Context().Value(utils.ContextKey("user")).(utils.ContextUser)
-	if !cUser.IsValid {
-		http.Error(w, "you unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	withdrawn, err := withdrawalrepository.Sum(r.Context(), cUser.User.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	responseData, err := json.Marshal(struct {
+	type userBalance struct {
 		Current   float64 `json:"current"`
 		Withdrawn float64 `json:"withdrawn"`
-	}{Current: cUser.User.Balance, Withdrawn: withdrawn})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(responseData)
+	withdrawn, err := h.services.Withdrawal.Sum(c.Request().Context(), user)
+	if err != nil {
+		log.Error().Err(err).Msg("Withdrawal sum")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	return c.JSON(http.StatusOK, userBalance{
+		Current:   user.Balance,
+		Withdrawn: withdrawn,
+	})
 }
 
-func PostWithdraw(w http.ResponseWriter, r *http.Request) {
-	cUser := r.Context().Value(utils.ContextKey("user")).(utils.ContextUser)
-	if !cUser.IsValid {
-		http.Error(w, "you unauthorized", http.StatusUnauthorized)
-		return
+func (h *Handler) PostWithdraw(c echo.Context) error {
+	type withdrawal struct {
+		Order string  `json:"order" validate:"required"`
+		Sum   float64 `json:"sum" validate:"required"`
 	}
 
-	body, err := io.ReadAll(r.Body)
+	user := c.Get("user").(*models.User)
+
+	w := new(withdrawal)
+	if err := c.Bind(w); err != nil {
+		log.Error().Err(err).Msg("Bind withdrawalModel")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+
+	if err := validator.New().Struct(w); err != nil {
+		err := err.(validator.ValidationErrors)[0]
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("The %s is %s", err.Field(), err.Tag()))
+	}
+
+	number, err := strconv.Atoi(w.Order)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Error().Err(err).Msg("Number string to int conversion")
+		return echo.NewHTTPError(http.StatusInternalServerError)
+	}
+	if !utils.ValidLuhn(number) {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity)
 	}
 
-	var withdrawal struct {
-		Order string  `json:"order"`
-		Sum   float64 `json:"sum"`
-	}
-	err = json.Unmarshal(body, &withdrawal)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if user.Balance < w.Sum {
+		return echo.NewHTTPError(http.StatusPaymentRequired, "Insufficient funds")
 	}
 
-	number, err := strconv.Atoi(withdrawal.Order)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-		return
+	withdrawalModel := &models.Withdrawal{
+		UserID: user.ID,
+		Order:  w.Order,
+		Sum:    w.Sum,
+	}
+	if err = h.services.Withdrawal.Create(c.Request().Context(), withdrawalModel, user); err != nil {
+		log.Error().Err(err).Msg("Create withdrawalModel")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	if ok := utils.ValidLuhn(number); !ok {
-		http.Error(w, "invalid order number", http.StatusUnprocessableEntity)
-		return
-	}
-
-	if cUser.User.Balance < withdrawal.Sum {
-		http.Error(w, "not enouth money", http.StatusPaymentRequired)
-		return
-	}
-
-	err = userrepository.Withdraw(r.Context(), cUser.User, withdrawal.Order, withdrawal.Sum)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	return c.NoContent(http.StatusOK)
 }
 
-func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
-	cUser := r.Context().Value(utils.ContextKey("user")).(utils.ContextUser)
-	if !cUser.IsValid {
-		http.Error(w, "you unauthorized", http.StatusUnauthorized)
-		return
-	}
+func (h *Handler) GetWithdrawals(c echo.Context) error {
+	user := c.Get("user").(*models.User)
 
-	withdrawals, err := withdrawalrepository.AllByUser(r.Context(), cUser.User.ID)
+	withdrawals, err := h.services.Withdrawal.All(c.Request().Context(), user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		log.Error().Err(err).Msg("Getting all user withdrawals")
+		return echo.NewHTTPError(http.StatusInternalServerError)
 	}
 
-	if len(withdrawals) <= 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
+	if len(withdrawals) > 0 {
+		return c.JSON(http.StatusOK, utils.MakeWithdrawalsResponse(withdrawals))
+	} else {
+		return c.NoContent(http.StatusNoContent)
 	}
-
-	responseBody, err := json.Marshal(withdrawals)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(responseBody)
 }
