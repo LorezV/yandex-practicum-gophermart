@@ -150,6 +150,8 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 		return false, nil
 	}
 
+	fmt.Println(resp)
+
 	order.Status = resp.Status
 	order.Accrual = resp.Accrual
 
