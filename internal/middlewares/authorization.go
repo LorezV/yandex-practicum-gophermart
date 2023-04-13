@@ -2,10 +2,9 @@ package middlewares
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
 	"github.com/LorezV/go-diploma.git/internal/utils"
 	"github.com/dgrijalva/jwt-go/v4"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 func Authorization(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contextUser := utils.ContextUser{IsValid: false}
-		var err error
 
 		defer func() {
 			r = r.WithContext(context.WithValue(r.Context(), utils.ContextKey("user"), contextUser))
@@ -48,11 +46,10 @@ func Authorization(next http.Handler) http.Handler {
 
 		claims, ok := token.Claims.(*utils.Claims)
 		if !ok || !token.Valid {
-			err = errors.New("invalid token claims")
 			return
 		}
 
-		user, err := user_repository.Get(r.Context(), "id", claims.UserID)
+		user, err := userrepository.Get(r.Context(), "id", claims.UserID)
 		if err != nil {
 			return
 		}

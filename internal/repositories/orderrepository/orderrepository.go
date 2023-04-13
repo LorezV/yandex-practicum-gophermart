@@ -1,4 +1,4 @@
-package order_repository
+package orderrepository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/accural"
 	"github.com/LorezV/go-diploma.git/internal/database"
-	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
 	"github.com/jackc/pgx/v5"
 	"time"
 )
@@ -156,13 +156,13 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 		return false, err
 	}
 
-	user, err := user_repository.Get(ctx, "id", order.UserID)
+	user, err := userrepository.Get(ctx, "id", order.UserID)
 	if err != nil {
 		return false, nil
 	}
 
 	user.Balance += order.Accrual
-	if err := user_repository.Update(ctx, &user); err != nil {
+	if err := userrepository.Update(ctx, &user); err != nil {
 		return false, err
 	}
 

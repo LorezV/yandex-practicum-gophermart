@@ -10,9 +10,9 @@ import (
 	"github.com/LorezV/go-diploma.git/internal/database"
 	"github.com/LorezV/go-diploma.git/internal/handlers"
 	"github.com/LorezV/go-diploma.git/internal/middlewares"
-	"github.com/LorezV/go-diploma.git/internal/repositories/order_repository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/withdrawal_repository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/orderrepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/withdrawalrepository"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/sync/errgroup"
@@ -74,7 +74,7 @@ func Run() {
 	})
 
 	g.Go(func() error {
-		if err := order_repository.RunPollingStatuses(mainCtx); err != nil {
+		if err := orderrepository.RunPollingStatuses(mainCtx); err != nil {
 			if errors.Is(err, accural.ErrAccrualSystemNoContent) {
 				return nil
 			}
@@ -113,17 +113,17 @@ func createRouter() (r *chi.Mux) {
 }
 
 func initRepositories() (err error) {
-	err = user_repository.CreateUserTable(context.Background())
+	err = userrepository.CreateUserTable(context.Background())
 	if err != nil {
 		return
 	}
 
-	err = order_repository.CreateOrderTable(context.Background())
+	err = orderrepository.CreateOrderTable(context.Background())
 	if err != nil {
 		return
 	}
 
-	err = withdrawal_repository.CreateWithdrawalTable(context.Background())
+	err = withdrawalrepository.CreateWithdrawalTable(context.Background())
 	if err != nil {
 		return
 	}
