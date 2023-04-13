@@ -187,10 +187,10 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type AccrualResponseData struct {
-		Number     string  `json:"number"`
-		Status     string  `json:"status"`
-		Accrual    float64 `json:"accrual"`
-		UploadedAt string  `json:"uploaded_at"`
+		Number     string   `json:"number"`
+		Status     string   `json:"status"`
+		Accrual    *float64 `json:"accrual"`
+		UploadedAt string   `json:"uploaded_at"`
 	}
 
 	if len(orders) <= 0 {
@@ -203,7 +203,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		result = append(result, AccrualResponseData{
 			Number:     order.Number,
 			Status:     order.Status,
-			Accrual:    *order.Accrual,
+			Accrual:    order.Accrual,
 			UploadedAt: order.CreatedAt.Format(time.RFC3339),
 		})
 	}
