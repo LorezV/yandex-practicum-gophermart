@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userRepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
 	"github.com/LorezV/go-diploma.git/internal/utils"
 	"github.com/dgrijalva/jwt-go/v4"
 	"net/http"
@@ -51,7 +51,7 @@ func Authorization(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := userRepository.Get(r.Context(), "id", claims.UserID)
+		user, err := user_repository.Get(r.Context(), "id", claims.UserID)
 		if err != nil {
 			return
 		}

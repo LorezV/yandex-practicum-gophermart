@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/orderRepository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userRepository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/withdrawalRepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/order_repository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/withdrawal_repository"
 	"github.com/LorezV/go-diploma.git/internal/utils"
 	"github.com/jackc/pgerrcode"
 	"io"
@@ -45,7 +45,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	password.Write([]byte(config.Config.PasswordSalt))
 	data.Password = fmt.Sprintf("%x", password.Sum(nil))
 
-	err = userRepository.Create(r.Context(), data.Login, data.Password, config.Config.PasswordSalt)
+	err = user_repository.Create(r.Context(), data.Login, data.Password, config.Config.PasswordSalt)
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			http.Error(w, "this login is already occupied", http.StatusConflict)
@@ -56,7 +56,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := userRepository.Get(r.Context(), "login", data.Login)
+	user, err := user_repository.Get(r.Context(), "login", data.Login)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -94,7 +94,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userRepository.Get(r.Context(), "login", data.Login)
+	user, err := user_repository.Get(r.Context(), "login", data.Login)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			http.Error(w, "invalid login or password", http.StatusUnauthorized)
@@ -148,10 +148,10 @@ func PostOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = orderRepository.Create(r.Context(), cUser.User.ID, fmt.Sprintf("%d", number))
+	_, err = order_repository.Create(r.Context(), cUser.User.ID, fmt.Sprintf("%d", number))
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
-			order, err := orderRepository.FindUnique(r.Context(), "number", fmt.Sprintf("%d", number))
+			order, err := order_repository.FindUnique(r.Context(), "number", fmt.Sprintf("%d", number))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -180,7 +180,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := orderRepository.FindByUser(r.Context(), cUser.User.ID)
+	orders, err := order_repository.FindByUser(r.Context(), cUser.User.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -226,7 +226,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	withdrawn, err := withdrawalRepository.Sum(r.Context(), cUser.User.ID)
+	withdrawn, err := withdrawal_repository.Sum(r.Context(), cUser.User.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -281,7 +281,7 @@ func PostWithdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userRepository.Withdraw(r.Context(), cUser.User, withdrawal.Order, withdrawal.Sum)
+	err = user_repository.Withdraw(r.Context(), cUser.User, withdrawal.Order, withdrawal.Sum)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -297,7 +297,7 @@ func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	withdrawals, err := withdrawalRepository.AllByUser(r.Context(), cUser.User.ID)
+	withdrawals, err := withdrawal_repository.AllByUser(r.Context(), cUser.User.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -1,4 +1,4 @@
-package withdrawalRepository
+package withdrawal_repository
 
 import (
 	"context"

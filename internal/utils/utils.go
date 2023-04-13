@@ -2,7 +2,7 @@ package utils
 
 import (
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userRepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
 	"github.com/dgrijalva/jwt-go/v4"
 	"time"
 )
@@ -17,7 +17,7 @@ type Claims struct {
 type ContextKey string
 
 type ContextUser struct {
-	User    userRepository.User
+	User    user_repository.User
 	IsValid bool
 }
 

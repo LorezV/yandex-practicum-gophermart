@@ -1,4 +1,4 @@
-package orderRepository
+package order_repository
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/accural"
 	"github.com/LorezV/go-diploma.git/internal/database"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userRepository"
+	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
 	"github.com/jackc/pgx/v5"
 	"time"
 )
@@ -120,6 +120,9 @@ func Create(ctx context.Context, userID int, number string) (order *Order, err e
 	}
 
 	order, err = FindUnique(ctx, "number", number)
+	if err != nil {
+		return
+	}
 
 	if _, err = PollStatus(ctx, order); err != nil {
 		return nil, err
@@ -153,13 +156,13 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 		return false, err
 	}
 
-	user, err := userRepository.Get(ctx, "id", order.UserID)
+	user, err := user_repository.Get(ctx, "id", order.UserID)
 	if err != nil {
 		return false, nil
 	}
 
 	user.Balance += order.Accrual
-	if err := userRepository.Update(ctx, &user); err != nil {
+	if err := user_repository.Update(ctx, &user); err != nil {
 		return false, err
 	}
 
@@ -195,7 +198,7 @@ func RunPollingStatuses(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := pollStatuses(ctx); err != nil && !errors.Is(err, accural.AccrualSystemUnavailableError) {
+			if err := pollStatuses(ctx); err != nil && !errors.Is(err, accural.ErrAccrualSystemUnavailable) {
 				return err
 			}
 
