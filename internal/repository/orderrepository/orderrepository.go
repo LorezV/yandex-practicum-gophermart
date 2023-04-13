@@ -152,10 +152,12 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 
 	order.Status = resp.Status
 	order.Accrual = resp.Accrual
+	fmt.Println(order.Accrual)
+	fmt.Println(*order.Accrual)
+	fmt.Println(resp.Accrual)
+	fmt.Println(*resp.Accrual)
 
 	if err = Update(ctx, order); err != nil {
-		fmt.Println("Update error")
-		fmt.Println(err.Error())
 		return false, err
 	}
 
