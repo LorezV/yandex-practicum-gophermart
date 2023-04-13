@@ -154,6 +154,8 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 	order.Accrual = resp.Accrual
 
 	if err = Update(ctx, order); err != nil {
+		fmt.Println("Update error")
+		fmt.Println(err.Error())
 		return false, err
 	}
 
@@ -164,7 +166,6 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 
 	user.Balance += *order.Accrual
 	if err = userrepository.Update(ctx, &user); err != nil {
-		fmt.Println("Update error")
 		return false, err
 	}
 
