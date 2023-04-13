@@ -1,7 +1,9 @@
 package config
 
 import (
+	"flag"
 	"github.com/caarlos0/env"
+	"log"
 )
 
 const SecretKey = "EXAMPLE_SECRET_KEY"
@@ -13,6 +15,13 @@ var Config struct {
 	DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgres://postgres:admin@localhost:5432/go-diploma"`
 }
 
-func InitConfig() error {
-	return env.Parse(&Config)
+func InitConfig() {
+	flag.StringVar(&Config.RunAddress, "a", "localhost:8000", "ip:port")
+	flag.StringVar(&Config.DatabaseURI, "d", "postgres://postgres:admin@localhost:5432/go-diploma", "postgres://login:password@host:port/database")
+	flag.StringVar(&Config.AccrualSystemAddress, "r", "", "An address of the Accrual System")
+
+	flag.Parse()
+	if err := env.Parse(&Config); err != nil {
+		log.Fatal("can't parse env")
+	}
 }

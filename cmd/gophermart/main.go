@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/accural"
 	"github.com/LorezV/go-diploma.git/internal/config"
@@ -26,19 +25,10 @@ import (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-
-	err := config.InitConfig()
-	if err != nil {
-		panic(err)
-	}
-
-	flag.StringVar(&config.Config.RunAddress, "a", config.Config.RunAddress, "ip:port")
-	flag.StringVar(&config.Config.DatabaseURI, "d", config.Config.DatabaseURI, "postgres://login:password@host:port/database")
-	flag.StringVar(&config.Config.AccrualSystemAddress, "r", config.Config.AccrualSystemAddress, "An address of the Accrual System")
 }
 
 func main() {
-	flag.Parse()
+	config.InitConfig()
 
 	mainCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

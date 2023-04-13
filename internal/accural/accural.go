@@ -41,7 +41,6 @@ func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (*Accrua
 	if err != nil {
 		return nil, ErrAccrualSystemUnavailable
 	}
-	fmt.Println(resp.StatusCode())
 
 	if err = ac.isBlocked(resp); err != nil {
 		return nil, err
