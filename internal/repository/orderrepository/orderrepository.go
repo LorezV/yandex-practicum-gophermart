@@ -126,15 +126,15 @@ func Create(ctx context.Context, userID int, number string) (*Order, error) {
 		return nil, err
 	}
 
-	//if _, err = PollStatus(ctx, order); err != nil {
-	//	return nil, err
-	//}
+	if _, err = PollStatus(ctx, order); err != nil {
+		return nil, err
+	}
 
 	return order, nil
 }
 
 func Update(ctx context.Context, order *Order) (err error) {
-	_, err = database.Connection.Exec(ctx, `UPDATE "public"."order" SET status=$1, accrual=$2 WHERE id=$3`, order.Status, order.Accrual, order.ID)
+	_, err = database.Connection.Exec(ctx, `UPDATE "public"."order" SET status=$1, accrual=$2 WHERE id=$3`, order.Status, *order.Accrual, order.ID)
 	return
 }
 
