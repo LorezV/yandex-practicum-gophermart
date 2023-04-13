@@ -26,8 +26,8 @@ type accrualClient struct {
 var ErrAccrualSystemUnavailable = errors.New("accrual system is unavailable")
 var ErrAccrualSystemNoContent = errors.New("no order in accural")
 
-func MakeAccrualClient() accrualClient {
-	return accrualClient{
+func InitAccrualClient() {
+	AccrualClient = accrualClient{
 		client: resty.New().SetBaseURL(config.Config.AccrualSystemAddress),
 	}
 }

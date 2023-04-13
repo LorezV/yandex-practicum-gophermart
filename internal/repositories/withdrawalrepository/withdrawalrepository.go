@@ -31,11 +31,6 @@ func CreateWithdrawalTable(ctx context.Context) error {
 	return err
 }
 
-func Create(ctx context.Context, userID int, order string, sum float64) (err error) {
-	_, err = database.Connection.Exec(ctx, `INSERT INTO "public"."withdrawal" (user_id, "order", sum) VALUES ($1, $2, $3);`, userID, order, sum)
-	return
-}
-
 func Sum(ctx context.Context, userID int) (sum float64, err error) {
 	err = database.Connection.QueryRow(ctx, `SELECT COALESCE(SUM(sum), 0) FROM "public"."withdrawal" WHERE user_id = $1;`, userID).Scan(&sum)
 	return

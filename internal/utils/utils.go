@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-var DateLayout = "2006-01-02T15:04:05.000Z"
-
 type Claims struct {
 	jwt.StandardClaims
 	UserID int `json:"user_id"`

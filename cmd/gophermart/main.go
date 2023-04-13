@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/accural"
@@ -24,8 +23,6 @@ import (
 	"syscall"
 	"time"
 )
-
-var ErrServerShutdown = errors.New("server shutdown")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -60,7 +57,7 @@ func main() {
 		fmt.Println("Repositories was initialized.")
 	}
 
-	accural.AccrualClient = accural.MakeAccrualClient()
+	accural.InitAccrualClient()
 
 	r := createRouter()
 
