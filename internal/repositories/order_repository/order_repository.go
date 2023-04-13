@@ -125,7 +125,7 @@ func Create(ctx context.Context, userID int, number string) (order *Order, err e
 	}
 
 	if _, err = PollStatus(ctx, order); err != nil {
-		return nil, err
+		return
 	}
 	return
 }
