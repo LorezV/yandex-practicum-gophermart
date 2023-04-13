@@ -47,7 +47,7 @@ func CreateOrderTable(ctx context.Context) error {
 func FindUnique(ctx context.Context, field string, value interface{}) (order *Order, err error) {
 	order = new(Order)
 	row := database.Connection.QueryRow(ctx, fmt.Sprintf("SELECT * FROM \"public\".\"order\" WHERE %s=$1", field), value)
-	err = scanOrder(row, order)
+	err = scan(row, order)
 	return
 }
 
@@ -70,7 +70,7 @@ func FindByUser(ctx context.Context, userID int) (orders []*Order, err error) {
 	for rows.Next() {
 		order := new(Order)
 
-		err = scanOrder(rows, order)
+		err = scan(rows, order)
 		if err != nil {
 			orders = nil
 			return
@@ -101,7 +101,7 @@ func FindPending(ctx context.Context) (orders []*Order, err error) {
 	for rows.Next() {
 		var order = new(Order)
 
-		err = scanOrder(rows, order)
+		err = scan(rows, order)
 		if err != nil {
 			orders = nil
 			return
@@ -205,6 +205,12 @@ func RunPollingStatuses(ctx context.Context) error {
 	}
 }
 
-func scanOrder(row pgx.Row, order *Order) error {
-	return row.Scan(&order.ID, &order.Number, &order.UserID, &order.CreatedAt, &order.Status, &order.Accrual)
+func scan(row pgx.Row, order *Order) error {
+	return row.Scan(
+		&order.ID,
+		&order.Number,
+		&order.UserID,
+		&order.CreatedAt,
+		&order.Status,
+		&order.Accrual)
 }
