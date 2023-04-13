@@ -49,7 +49,7 @@ func Authorization(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := userrepository.Get(r.Context(), "id", claims.UserID)
+		user, err := userrepository.FindUnique(r.Context(), "id", claims.UserID)
 		if err != nil {
 			return
 		}

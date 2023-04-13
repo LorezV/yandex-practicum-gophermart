@@ -58,7 +58,7 @@ func CheckSumLuhn(number int) int {
 }
 
 //func FetchAccrualOrder(number string) (AccrualOrder, error) {
-//	resp, err := http.Get(fmt.Sprintf("%s/api/orders/%s", config.Config.AccrualSystemAddress, number))
+//	resp, err := http.FindUnique(fmt.Sprintf("%s/api/orders/%s", config.Config.AccrualSystemAddress, number))
 //
 //	resp.
 //}

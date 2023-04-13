@@ -12,8 +12,8 @@ import (
 
 var Connection *pgx.Conn
 
-func InitConnection() (err error) {
-	Connection, err = pgx.Connect(context.Background(), config.Config.DatabaseURI)
+func InitConnection(ctx context.Context) (err error) {
+	Connection, err = pgx.Connect(ctx, config.Config.DatabaseURI)
 	if err != nil {
 		return
 	}

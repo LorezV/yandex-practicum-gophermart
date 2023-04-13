@@ -56,7 +56,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	user, err := userrepository.Get(r.Context(), "login", data.Login)
+	user, err := userrepository.FindUnique(r.Context(), "login", data.Login)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -94,7 +94,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userrepository.Get(r.Context(), "login", data.Login)
+	user, err := userrepository.FindUnique(r.Context(), "login", data.Login)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			http.Error(w, "invalid login or password", http.StatusUnauthorized)
@@ -203,7 +203,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		result = append(result, AccrualResponseData{
 			Number:     order.Number,
 			Status:     order.Status,
-			Accrual:    order.Accrual,
+			Accrual:    *order.Accrual,
 			UploadedAt: order.CreatedAt.Format(time.RFC3339),
 		})
 	}

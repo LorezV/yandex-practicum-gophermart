@@ -29,7 +29,7 @@ func CreateUserTable(ctx context.Context) error {
 	return err
 }
 
-func Get(ctx context.Context, field string, value interface{}) (user User, err error) {
+func FindUnique(ctx context.Context, field string, value interface{}) (user User, err error) {
 	row := database.Connection.QueryRow(ctx, fmt.Sprintf("SELECT * FROM \"public\".\"user\" WHERE %s=$1", field), value)
 	err = scanUser(row, &user)
 	return

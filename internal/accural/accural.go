@@ -13,9 +13,9 @@ import (
 var AccrualClient accrualClient
 
 type AccrualOrder struct {
-	Order   string  `json:"order"`
-	Status  string  `json:"status"`
-	Accrual float64 `json:"accrual"`
+	Order   string   `json:"order"`
+	Status  string   `json:"status"`
+	Accrual *float64 `json:"accrual"`
 }
 
 type accrualClient struct {
@@ -32,40 +32,39 @@ func MakeAccrualClient() accrualClient {
 	}
 }
 
-func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (order *AccrualOrder, err error) {
-	order = new(AccrualOrder)
+func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (*AccrualOrder, error) {
+	order := new(AccrualOrder)
 
 	resp, err := ac.client.R().
 		SetContext(ctx).
 		SetResult(order).
 		Get(fmt.Sprintf("/api/orders/%s", number))
 	if err != nil {
-		return
+		return nil, ErrAccrualSystemUnavailable
 	}
 
 	if err = ac.isBlocked(resp); err != nil {
-		return
+		return nil, err
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {
-		err = ErrAccrualSystemNoContent
-		return
+		return nil, ErrAccrualSystemNoContent
 	}
 
-	return
+	return order, nil
 }
 
-func (ac *accrualClient) CanRequest() bool {
+func (ac *accrualClient) CanRequest() error {
 	if ac.retryAt == nil {
-		return true
+		return nil
 	}
 
 	if time.Now().After(*ac.retryAt) {
 		ac.retryAt = nil
-		return true
+		return nil
 	}
 
-	return false
+	return fmt.Errorf("accrual client unlocks in %s", time.Until(*ac.retryAt))
 }
 
 func (ac *accrualClient) isBlocked(resp *resty.Response) error {

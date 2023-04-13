@@ -24,7 +24,7 @@ type Order struct {
 	UserID    int
 	CreatedAt *time.Time
 	Status    string
-	Accrual   float64
+	Accrual   *float64
 }
 
 func CreateOrderTable(ctx context.Context) error {
@@ -138,11 +138,11 @@ func Update(ctx context.Context, order *Order) (err error) {
 func PollStatus(ctx context.Context, order *Order) (bool, error) {
 	resp, err := accural.AccrualClient.FetchOrder(ctx, order.Number)
 	if err != nil {
-		return false, err
-	}
+		if errors.Is(err, accural.ErrAccrualSystemNoContent) {
+			return false, nil
+		}
 
-	if resp == nil {
-		return false, nil
+		return false, err
 	}
 
 	if order.Status == resp.Status {
@@ -156,13 +156,13 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 		return false, err
 	}
 
-	user, err := userrepository.Get(ctx, "id", order.UserID)
+	user, err := userrepository.FindUnique(ctx, "id", order.UserID)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 
-	user.Balance += order.Accrual
-	if err := userrepository.Update(ctx, &user); err != nil {
+	user.Balance += *order.Accrual
+	if err = userrepository.Update(ctx, &user); err != nil {
 		return false, err
 	}
 
@@ -170,7 +170,7 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 }
 
 func pollStatuses(ctx context.Context) error {
-	if ok := accural.AccrualClient.CanRequest(); !ok {
+	if err := accural.AccrualClient.CanRequest(); err != nil {
 		return nil
 	}
 
@@ -180,7 +180,7 @@ func pollStatuses(ctx context.Context) error {
 	}
 
 	for _, order := range orders {
-		_, err := PollStatus(ctx, order)
+		_, err = PollStatus(ctx, order)
 		if err != nil {
 			return err
 		}
@@ -201,7 +201,6 @@ func RunPollingStatuses(ctx context.Context) error {
 			if err := pollStatuses(ctx); err != nil && !errors.Is(err, accural.ErrAccrualSystemUnavailable) {
 				return err
 			}
-
 		}
 	}
 }
