@@ -9,9 +9,9 @@ import (
 	"github.com/LorezV/go-diploma.git/internal/database"
 	"github.com/LorezV/go-diploma.git/internal/handlers"
 	"github.com/LorezV/go-diploma.git/internal/middlewares"
-	"github.com/LorezV/go-diploma.git/internal/repositories/orderrepository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
-	"github.com/LorezV/go-diploma.git/internal/repositories/withdrawalrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/orderrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/userrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/withdrawalrepository"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/sync/errgroup"
@@ -52,7 +52,7 @@ func main() {
 	defer database.Connection.Close(mainCtx)
 
 	if err := initRepositories(mainCtx); err != nil {
-		fmt.Printf("Can't initialize repositories: %T", err)
+		fmt.Printf("Can't initialize repository: %T", err)
 	} else {
 		fmt.Println("Repositories was initialized.")
 	}

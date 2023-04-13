@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/accural"
 	"github.com/LorezV/go-diploma.git/internal/database"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/userrepository"
 	"github.com/jackc/pgx/v5"
 	"time"
 )
@@ -126,9 +126,9 @@ func Create(ctx context.Context, userID int, number string) (*Order, error) {
 		return nil, err
 	}
 
-	if _, err = PollStatus(ctx, order); err != nil {
-		return nil, err
-	}
+	//if _, err = PollStatus(ctx, order); err != nil {
+	//	return nil, err
+	//}
 
 	return order, nil
 }

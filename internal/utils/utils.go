@@ -2,7 +2,7 @@ package utils
 
 import (
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/userrepository"
 	"github.com/dgrijalva/jwt-go/v4"
 	"time"
 )

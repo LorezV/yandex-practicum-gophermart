@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userrepository"
+	"github.com/LorezV/go-diploma.git/internal/repository/userrepository"
 	"github.com/LorezV/go-diploma.git/internal/utils"
 	"github.com/dgrijalva/jwt-go/v4"
 	"net/http"
