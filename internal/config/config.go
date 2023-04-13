@@ -22,8 +22,8 @@ var Config struct {
 }
 
 func InitConfig() {
-	flag.StringVar(&Config.RunAddress, "a", "localhost:8000", "ip:port")
-	flag.StringVar(&Config.DatabaseURI, "d", "postgres://postgres:admin@localhost:5432/go-diploma", "postgres://login:password@host:port/database")
+	flag.StringVar(&Config.RunAddress, "a", "localhost:8080", "An address and port for server to start")
+	flag.StringVar(&Config.DatabaseURI, "d", "", "An address of DB connection")
 	flag.StringVar(&Config.AccrualSystemAddress, "r", "", "An address of the Accrual System")
 
 	flag.Parse()
