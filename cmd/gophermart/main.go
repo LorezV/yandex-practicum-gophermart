@@ -24,6 +24,8 @@ import (
 	"time"
 )
 
+var flags string
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -34,11 +36,15 @@ func init() {
 
 	flag.StringVar(&config.Config.RunAddress, "a", config.Config.RunAddress, "ip:port")
 	flag.StringVar(&config.Config.DatabaseURI, "d", config.Config.DatabaseURI, "postgres://login:password@host:port/database")
-	flag.StringVar(&config.Config.AccrualSystemAddress, "r", config.Config.AccrualSystemAddress, "ip:port")
+
+	flag.StringVar(&flags, "r", "", "An address of the Accrual System")
 }
 
 func main() {
 	flag.Parse()
+
+	fmt.Println(flags)
+	config.Config.AccrualSystemAddress = flags
 
 	mainCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
