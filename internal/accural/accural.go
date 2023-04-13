@@ -24,7 +24,6 @@ type accrualClient struct {
 }
 
 var ErrAccrualSystemUnavailable = errors.New("accrual system is unavailable")
-var ErrAccrualSystemNoContent = errors.New("no order in accural")
 
 func InitAccrualClient() {
 	AccrualClient = accrualClient{
@@ -48,7 +47,7 @@ func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (*Accrua
 	}
 
 	if resp.StatusCode() == http.StatusNoContent {
-		return nil, ErrAccrualSystemNoContent
+		return nil, nil
 	}
 
 	return order, nil

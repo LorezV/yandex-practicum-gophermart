@@ -139,11 +139,11 @@ func Update(ctx context.Context, order *Order) (err error) {
 func PollStatus(ctx context.Context, order *Order) (bool, error) {
 	resp, err := accural.AccrualClient.FetchOrder(ctx, order.Number)
 	if err != nil {
-		if errors.Is(err, accural.ErrAccrualSystemNoContent) {
-			return false, nil
-		}
-
 		return false, err
+	}
+
+	if resp == nil {
+		return false, nil
 	}
 
 	if order.Status == resp.Status {
@@ -152,10 +152,6 @@ func PollStatus(ctx context.Context, order *Order) (bool, error) {
 
 	order.Status = resp.Status
 	order.Accrual = resp.Accrual
-	fmt.Println(order.Accrual)
-	fmt.Println(*order.Accrual)
-	fmt.Println(resp.Accrual)
-	fmt.Println(*resp.Accrual)
 
 	if err = Update(ctx, order); err != nil {
 		return false, err
