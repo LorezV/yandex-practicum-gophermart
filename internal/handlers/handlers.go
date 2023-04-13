@@ -153,7 +153,7 @@ func PostOrders(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			order, err := orderrepository.FindUnique(r.Context(), "number", fmt.Sprintf("%d", number))
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusGone)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
@@ -166,6 +166,7 @@ func PostOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
