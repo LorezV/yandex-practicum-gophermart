@@ -38,7 +38,7 @@ func Authorization(next http.Handler) http.Handler {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 
-			return []byte(config.Config.SecretKey), nil
+			return []byte(config.SecretKey), nil
 		})
 		if err != nil {
 			return

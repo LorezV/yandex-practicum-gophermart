@@ -42,10 +42,10 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	password := sha256.New()
 	password.Write([]byte(data.Password))
-	password.Write([]byte(config.Config.PasswordSalt))
+	password.Write([]byte(config.PasswordSalt))
 	data.Password = fmt.Sprintf("%x", password.Sum(nil))
 
-	err = userrepository.Create(r.Context(), data.Login, data.Password, config.Config.PasswordSalt)
+	err = userrepository.Create(r.Context(), data.Login, data.Password, config.PasswordSalt)
 	if err != nil {
 		if strings.Contains(err.Error(), pgerrcode.UniqueViolation) {
 			http.Error(w, "this login is already occupied", http.StatusConflict)
@@ -107,7 +107,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	password := sha256.New()
 	password.Write([]byte(data.Password))
-	password.Write([]byte(config.Config.PasswordSalt))
+	password.Write([]byte(config.PasswordSalt))
 	data.Password = fmt.Sprintf("%x", password.Sum(nil))
 
 	if data.Password != user.Password {

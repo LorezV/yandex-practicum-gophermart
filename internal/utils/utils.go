@@ -28,7 +28,7 @@ func GenerateUserToken(userID int) (token string, err error) {
 		UserID: userID,
 	})
 
-	token, err = tokenObject.SignedString([]byte(config.Config.SecretKey))
+	token, err = tokenObject.SignedString([]byte(config.SecretKey))
 	return
 }
 
