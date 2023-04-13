@@ -50,6 +50,10 @@ func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (*Accrua
 		return nil, nil
 	}
 
+	if resp.StatusCode() != 200 {
+		return nil, ErrAccrualSystemUnavailable
+	}
+
 	return order, nil
 }
 
