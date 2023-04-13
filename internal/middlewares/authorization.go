@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/LorezV/go-diploma.git/internal/config"
 	"github.com/LorezV/go-diploma.git/internal/repositories/user_repository"
@@ -36,7 +37,7 @@ func Authorization(next http.Handler) http.Handler {
 
 		token, err := jwt.ParseWithClaims(parts[1], &utils.Claims{}, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: &v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 
 			return []byte(config.Config.SecretKey), nil
@@ -47,7 +48,7 @@ func Authorization(next http.Handler) http.Handler {
 
 		claims, ok := token.Claims.(*utils.Claims)
 		if !ok || !token.Valid {
-			err = fmt.Errorf("invalid token claims")
+			err = errors.New("invalid token claims")
 			return
 		}
 

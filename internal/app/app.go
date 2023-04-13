@@ -50,7 +50,7 @@ func Run() {
 	defer database.Connection.Close(context.Background())
 
 	if err := initRepositories(); err != nil {
-		fmt.Println(fmt.Sprintf("Can't initialize repositories: %T", err))
+		fmt.Printf("Can't initialize repositories: %T", err)
 	} else {
 		fmt.Println("Repositories was initialized.")
 	}

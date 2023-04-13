@@ -198,7 +198,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := make([]AccrualResponseData)
+	result := make([]AccrualResponseData, 0)
 	for _, order := range orders {
 		result = append(result, AccrualResponseData{
 			Number:     order.Number,
