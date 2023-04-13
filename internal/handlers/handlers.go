@@ -166,7 +166,6 @@ func PostOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

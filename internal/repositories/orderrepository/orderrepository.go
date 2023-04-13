@@ -29,16 +29,7 @@ type Order struct {
 
 func CreateOrderTable(ctx context.Context) error {
 	_, err := database.Connection.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS "order" (
-			"id" SERIAL PRIMARY KEY,
-			"number" VARCHAR(256) NOT NULL UNIQUE,
-			"user_id" INTEGER,
-			"created_at" timestamp(3) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			"status" VARCHAR(128) NOT NULL DEFAULT 'NEW',
-			"accrual" FLOAT NOT NULL DEFAULT 0,
-			CONSTRAINT user_order_id_fk FOREIGN KEY (user_id)
-			REFERENCES "public"."user" (id) MATCH SIMPLE ON DELETE CASCADE ON UPDATE NO ACTION
-		);
+DROP TABLE "order";
 	`)
 
 	return err
