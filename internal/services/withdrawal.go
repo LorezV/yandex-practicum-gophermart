@@ -8,6 +8,8 @@ import (
 	"github.com/LorezV/go-diploma.git/internal/repository"
 )
 
+var ErrInsufficientFunds = errors.New("insufficient funds")
+
 type WithdrawalService struct {
 	repo  repository.Withdrawals
 	users repository.Users
@@ -35,12 +37,12 @@ func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.With
 		return err
 	}
 
-	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = "user".balance - $1 WHERE id = $2 AND balance >= $3;`, user.Balance, user.ID, user.Balance)
+	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = "user".balance - $1 WHERE id = $2 AND balance >= $1;`, withdrawal.Sum, user.ID)
 	if err != nil {
 		return err
 	}
 	if !(tag.RowsAffected() > 0) {
-		return errors.New("insufficient funds")
+		return ErrInsufficientFunds
 	}
 
 	return tx.Commit(ctx)

@@ -198,6 +198,10 @@ func (h *Handler) PostWithdraw(c echo.Context) error {
 		Sum:    w.Sum,
 	}
 	if err = h.services.Withdrawal.Create(c.Request().Context(), withdrawalModel, user); err != nil {
+		if errors.Is(err, services.ErrInsufficientFunds) {
+			return echo.NewHTTPError(http.StatusPaymentRequired, err.Error())
+		}
+
 		log.Error().Err(err).Msg("Create withdrawalModel")
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
