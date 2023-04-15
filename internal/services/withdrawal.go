@@ -35,7 +35,7 @@ func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.With
 		return err
 	}
 
-	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = "user".balance - $1 WHERE id = $2 AND balance >= $1;`, user.Balance, user.ID)
+	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = "user".balance - $1 WHERE id = $2 AND balance >= $3;`, user.Balance, user.ID, user.Balance)
 	if err != nil {
 		return err
 	}
@@ -43,19 +43,7 @@ func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.With
 		return errors.New("insufficient funds")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
-		return err
-	}
-
-	updatedUser, err := ws.users.FindByID(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-
-	user.Balance = updatedUser.Balance
-
-	return nil
+	return tx.Commit(ctx)
 }
 
 func (ws *WithdrawalService) Sum(ctx context.Context, user *models.User) (float64, error) {
