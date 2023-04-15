@@ -37,14 +37,12 @@ func main() {
 
 	accrualClient := clients.MakeAccrualClient(cfg.AccrualSystemAddress)
 	mainRepository := repository.MakeRepository(db)
-	mainServices := services.MakeServices(mainRepository, accrualClient, config.SecretKey)
+	mainServices := services.MakeServices(mainRepository, accrualClient, config.SecretKey, db)
 
 	s := server.NewServer(cfg.RunAddress, mainServices)
 
 	g, gCtx := errgroup.WithContext(mainCtx)
-	g.Go(func() error {
-		return s.Run()
-	})
+	g.Go(s.Run)
 	g.Go(func() error {
 		<-gCtx.Done()
 		return s.Shutdown(context.Background())

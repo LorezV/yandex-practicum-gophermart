@@ -192,10 +192,6 @@ func (h *Handler) PostWithdraw(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity)
 	}
 
-	if user.Balance < w.Sum {
-		return echo.NewHTTPError(http.StatusPaymentRequired, "Insufficient funds")
-	}
-
 	withdrawalModel := &models.Withdrawal{
 		UserID: user.ID,
 		Order:  w.Order,
@@ -203,7 +199,7 @@ func (h *Handler) PostWithdraw(c echo.Context) error {
 	}
 	if err = h.services.Withdrawal.Create(c.Request().Context(), withdrawalModel, user); err != nil {
 		log.Error().Err(err).Msg("Create withdrawalModel")
-		return echo.NewHTTPError(http.StatusInternalServerError)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.NoContent(http.StatusOK)

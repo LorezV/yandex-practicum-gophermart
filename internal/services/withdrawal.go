@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"errors"
+	"github.com/LorezV/go-diploma.git/internal/database"
 	"github.com/LorezV/go-diploma.git/internal/models"
 	"github.com/LorezV/go-diploma.git/internal/repository"
 )
@@ -9,24 +11,49 @@ import (
 type WithdrawalService struct {
 	repo  repository.Withdrawals
 	users repository.Users
+	db    *database.Database
 }
 
-func NewWithdrawalService(repo repository.Withdrawals, users repository.Users) *WithdrawalService {
+func NewWithdrawalService(repo repository.Withdrawals, users repository.Users, db *database.Database) *WithdrawalService {
 	return &WithdrawalService{
 		repo:  repo,
 		users: users,
+		db:    db,
 	}
 }
 
 func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.Withdrawal, user *models.User) error {
-	if err := ws.repo.Create(ctx, withdrawal); err != nil {
+	tx, err := ws.db.Begin(ctx)
+	if err != nil {
 		return err
 	}
 
-	user.Balance -= withdrawal.Sum
-	if err := ws.users.Update(ctx, user); err != nil {
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `INSERT INTO "public"."withdraw" (user_id, number, sum) VALUES ($1, $2, $3);`, withdrawal.UserID, withdrawal.Order, withdrawal.Sum)
+	if err != nil {
 		return err
 	}
+
+	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = balance - $1 WHERE id = $2 AND balance >= $1;`, user.Balance, user.ID)
+	if err != nil {
+		return err
+	}
+	if !(tag.RowsAffected() > 0) {
+		return errors.New("insufficient funds")
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	updatedUser, err := ws.users.FindByID(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	user = updatedUser
 
 	return nil
 }

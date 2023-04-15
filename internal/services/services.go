@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"github.com/LorezV/go-diploma.git/internal/accural"
+	"github.com/LorezV/go-diploma.git/internal/database"
 	"github.com/LorezV/go-diploma.git/internal/models"
 	"github.com/LorezV/go-diploma.git/internal/repository"
 )
@@ -38,11 +39,11 @@ type Services struct {
 	Withdrawal
 }
 
-func MakeServices(repo *repository.Repository, client *clients.AccrualClient, JWTSecret string) *Services {
+func MakeServices(repo *repository.Repository, client *clients.AccrualClient, JWTSecret string, db *database.Database) *Services {
 	return &Services{
 		User:       MakeUserService(repo.Users),
 		Auth:       MakeAuthService(repo.Users, JWTSecret),
 		Order:      MakeOrderService(repo.Orders, repo.Users, client),
-		Withdrawal: NewWithdrawalService(repo.Withdrawals, repo.Users),
+		Withdrawal: NewWithdrawalService(repo.Withdrawals, repo.Users, db),
 	}
 }
