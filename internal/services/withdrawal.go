@@ -53,7 +53,7 @@ func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.With
 		return err
 	}
 
-	user = updatedUser
+	user.Balance = updatedUser.Balance
 
 	return nil
 }
