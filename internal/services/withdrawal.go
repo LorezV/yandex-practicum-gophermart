@@ -35,7 +35,7 @@ func (ws *WithdrawalService) Create(ctx context.Context, withdrawal *models.With
 		return err
 	}
 
-	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = balance - $1 WHERE id = $2 AND balance >= $1;`, user.Balance, user.ID)
+	tag, err := tx.Exec(ctx, `UPDATE "public"."user" SET balance = "user".balance - $1 WHERE id = $2 AND balance >= $1;`, user.Balance, user.ID)
 	if err != nil {
 		return err
 	}
