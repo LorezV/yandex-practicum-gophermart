@@ -1,62 +1,48 @@
 package middlewares
 
 import (
-	"context"
 	"fmt"
-	"github.com/LorezV/go-diploma.git/internal/config"
-	"github.com/LorezV/go-diploma.git/internal/repositories/userRepository"
-	"github.com/LorezV/go-diploma.git/internal/utils"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/LorezV/go-diploma.git/internal/services"
+	"github.com/golang-jwt/jwt"
+	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
 )
 
-func Authorization(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		contextUser := utils.ContextUser{IsValid: false}
-		var err error
+type Authorization struct {
+	Services *services.Services
+}
 
-		defer func() {
-			r = r.WithContext(context.WithValue(r.Context(), utils.ContextKey("user"), contextUser))
-			next.ServeHTTP(w, r)
-		}()
-
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			return
+func (middleware *Authorization) Handle(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		authorization := c.Request().Header.Get("Authorization")
+		if authorization == "" {
+			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("authorization is required"))
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 {
-			return
-		}
-		if parts[0] != "Bearer" {
-			return
-		}
+		tokenString := strings.Split(authorization, " ")[1]
 
-		token, err := jwt.ParseWithClaims(parts[1], &utils.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: &v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(middleware.Services.Auth.GetSecret()), nil
+		})
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			user, err := middleware.Services.User.FindByLogin(c.Request().Context(), claims["sub"].(string))
+			if err != nil || user == nil {
+				log.Error().Err(err).Msg("Finding user after valid JWT")
+				return echo.NewHTTPError(http.StatusUnauthorized)
 			}
 
-			return []byte(config.Config.SecretKey), nil
-		})
-		if err != nil {
-			return
+			c.Set("user", user)
+		} else {
+			log.Error().Err(err).Msg("Parse JWT")
+			return echo.NewHTTPError(http.StatusUnauthorized)
 		}
 
-		claims, ok := token.Claims.(*utils.Claims)
-		if !ok || !token.Valid {
-			err = fmt.Errorf("invalid token claims")
-			return
-		}
-
-		user, err := userRepository.Get(r.Context(), "id", claims.UserID)
-		if err != nil {
-			return
-		}
-
-		contextUser.User = user
-		contextUser.IsValid = true
-	})
+		return next(c)
+	}
 }

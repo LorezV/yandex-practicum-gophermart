@@ -1,86 +1,86 @@
-package accural
+package clients
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/LorezV/go-diploma.git/internal/config"
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"time"
 )
 
-var AccrualClient accrualClient
+var ErrAccrualSystemUnavailable = errors.New("accrual system is unavailable")
 
-type AccrualOrder struct {
-	Order   string  `json:"order"`
-	Status  string  `json:"status"`
-	Accrual float64 `json:"accrual"`
+type Order struct {
+	Order   string   `json:"order"`
+	Status  string   `json:"status"`
+	Accrual *float64 `json:"accrual"`
 }
 
-type accrualClient struct {
+type AccrualClient struct {
 	client  *resty.Client
 	retryAt *time.Time
 }
 
-var AccrualSystemUnavailableError = errors.New("accrual system is unavailable")
-var AccrualSystemNoContentError = errors.New("no order in accural")
-
-func MakeAccrualClient() accrualClient {
-	return accrualClient{
-		client: resty.New().SetBaseURL(config.Config.AccrualSystemAddress),
+func MakeAccrualClient(baseURL string) *AccrualClient {
+	return &AccrualClient{
+		client: resty.New().SetBaseURL(baseURL),
 	}
 }
 
-func (ac *accrualClient) FetchOrder(ctx context.Context, number string) (order *AccrualOrder, err error) {
-	order = new(AccrualOrder)
+func (asc *AccrualClient) FetchOrder(ctx context.Context, number string) (*Order, error) {
+	order := new(Order)
 
-	resp, err := ac.client.R().
+	resp, err := asc.client.R().
 		SetContext(ctx).
 		SetResult(order).
 		Get(fmt.Sprintf("/api/orders/%s", number))
 	if err != nil {
-		return
+		return nil, ErrAccrualSystemUnavailable
+	}
+	if err = asc.isBlocked(resp); err != nil {
+		return nil, err
 	}
 
-	if err = ac.isBlocked(resp); err != nil {
-		return
-	}
+	log.Debug().
+		Str("status", resp.Status()).
+		Str("msg", string(resp.Body())).
+		Str("order", number).
+		Msg("Polling order status")
 
 	if resp.StatusCode() == http.StatusNoContent {
-		err = AccrualSystemNoContentError
-		return
+		return nil, nil
 	}
 
-	return
+	return order, nil
 }
 
-func (ac *accrualClient) CanRequest() bool {
-	if ac.retryAt == nil {
-		return true
+func (asc *AccrualClient) CanRequest() error {
+	if asc.retryAt == nil {
+		return nil
 	}
 
-	if time.Now().After(*ac.retryAt) {
-		ac.retryAt = nil
-		return true
+	if time.Now().After(*asc.retryAt) {
+		asc.retryAt = nil
+		return nil
 	}
 
-	return false
+	return fmt.Errorf("accural unblocks in %s", time.Until(*asc.retryAt))
 }
 
-func (ac *accrualClient) isBlocked(resp *resty.Response) error {
+func (asc *AccrualClient) isBlocked(resp *resty.Response) error {
 	if !resp.IsError() && resp.StatusCode() != http.StatusTooManyRequests {
 		return nil
 	}
 
 	delay, err := time.ParseDuration(fmt.Sprintf("%ss", resp.Header().Get("Retry-After")))
 	if err != nil {
-		return nil
+		return err
 	}
 
 	body := string(resp.Body())
-	fmt.Println(body)
-	*ac.retryAt = time.Now().Add(delay)
+	*asc.retryAt = time.Now().Add(delay)
 
 	return fmt.Errorf(body)
 }
